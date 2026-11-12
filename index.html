@@ -128,6 +128,14 @@
   }
   .entry.expense{background:var(--red-bg);}
   .entry.income{background:var(--green-bg);}
+  .entry.separate{background:#EEE3C2;}
+  .entry .amt.separate{color:var(--gold);}
+  .sepbox{display:block; margin-top:.6rem; padding:.5rem .6rem; border:1px dashed var(--gold); border-radius:6px; background:#F6EFD8; font-size:13px; font-weight:600;}
+  .sepbox .seph{font-weight:700; margin-bottom:.3rem;}
+  .sepbox .sepl{display:flex; justify-content:space-between; padding:.1rem 0; font-weight:500;}
+  .sepbox .sepl.tot{border-top:1px solid var(--gold); margin-top:.2rem; padding-top:.3rem; font-weight:700;}
+  .sepbox small{font-weight:400; color:var(--ink-soft);}
+  .sepbox .amt{font-family:var(--font-mono); color:var(--gold);}
   .entry .left{min-width:0;}
   .entry .date{font-family:var(--font-mono); font-size:11px; color:var(--ink-soft);}
   .entry .cat{font-weight:600; font-size:13.5px;}
@@ -167,6 +175,18 @@
   .month-pill.total{background:var(--cover); border-color:var(--cover);}
   .month-pill.total .mlabel{color:#B9C9BB;}
   .month-pill.total .mval{color:var(--paper-light);}
+  .stat-chips{display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-bottom:.9rem;}
+  .stat-chip{background:var(--paper-light); border:1px solid var(--line); border-radius:8px; padding:.5rem .65rem;}
+  .stat-chip .k{display:block; font-size:11px; color:var(--ink-soft);}
+  .stat-chip .v{display:block; font-family:var(--font-mono); font-weight:700; font-size:14px; margin-top:.1rem;}
+  .stat-chip .s{display:block; font-size:11.5px; color:var(--ink-soft);}
+  .donut-wrap{display:flex; justify-content:center; margin-bottom:.6rem;}
+  .legend-row{display:flex; align-items:center; gap:.5rem; padding:.3rem 0; border-bottom:1px dashed var(--line); font-size:13px;}
+  .legend-row:last-child{border-bottom:none;}
+  .legend-row .dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+  .legend-row .nm{flex:1; min-width:0;}
+  .legend-row .pc{font-family:var(--font-mono); font-size:12px; color:var(--ink-soft); width:3rem; text-align:right;}
+  .legend-row .am{font-family:var(--font-mono); font-weight:600; width:6.2rem; text-align:right;}
   .subhead{font-size:12px; color:var(--ink-soft); margin-bottom:.6rem;}
 </style>
 </head>
@@ -238,6 +258,16 @@
 </section>
 
 <section>
+  <details id="statsDetails">
+    <summary><span>Στατιστικά</span><span class="chev">▸</span></summary>
+    <div class="details-inner">
+      <select id="statsPeriod"></select>
+      <div id="statsBody" style="margin-top:.8rem;"></div>
+    </div>
+  </details>
+</section>
+
+<section>
   <details id="analysisDetails">
     <summary><span>Ανάλυση κατηγορίας</span><span class="chev">▸</span></summary>
     <div class="details-inner">
@@ -271,7 +301,7 @@
 
 <footer class="note">
   Τα δεδομένα αποθηκεύονται τοπικά στη συσκευή/browser που ανοίγεις την εφαρμογή. Για να τα έχεις και στο κινητό της συζύγου, κάνε «Εξαγωγή JSON» εδώ και «Εισαγωγή» εκεί (και αντίστροφα όποτε προστίθενται νέες κινήσεις) — δεν γίνεται αυτόματος συγχρονισμός ανάμεσα σε συσκευές.
-  <div style="margin-top:.5rem; font-family:monospace; opacity:.7;">build: 2026-08-10-5</div>
+  <div style="margin-top:.5rem; font-family:monospace; opacity:.7;">build: 2026-11-12-3</div>
 </footer>
 
 </div>
@@ -292,12 +322,14 @@ const EXPENSE_GROUPS = [
   {id:'ypodysi', label:'Υπόδυση'},
   {id:'kaysima', label:'Καύσιμα / Συντήρηση ΙΧ'},
   {id:'eksodos', label:'Έξοδος / Ταβέρνα / Café'},
-  {id:'diafora', label:'Διάφορα'}
+  {id:'diafora', label:'Διάφορα'},
+  {id:'charoula', label:'ΧΑΡΟΥΛΑ', separate:true}
 ];
 const INCOME_GROUPS = [
   {id:'misthos', label:'Μισθός'},
   {id:'ektakto', label:'Έκτακτο έσοδο'},
-  {id:'allo', label:'Άλλο έσοδο'}
+  {id:'allo', label:'Άλλο έσοδο'},
+  {id:'charoula', label:'ΧΑΡΟΥΛΑ', separate:true}
 ];
 const MONTH_NAMES = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
 const MONTH_ABBR = ['ΙΑΝ','ΦΕΒ','ΜΑΡ','ΑΠΡ','ΜΑΪ','ΙΟΥΝ','ΙΟΥΛ','ΑΥΓ','ΣΕΠ','ΟΚΤ','ΝΟΕ','ΔΕΚ'];
@@ -318,6 +350,21 @@ function parseAmount(text){
 function monthKeyOf(dateStr){ return dateStr.slice(0,7); }
 function groupsFor(type){ return type==='income' ? INCOME_GROUPS : EXPENSE_GROUPS; }
 function findGroup(type, groupId){ return groupsFor(type).find(g=>g.id===groupId); }
+function isSeparate(e){
+  if(!e) return false;
+  const g = findGroup(e.type, e.groupId);
+  return !!(g && g.separate);
+}
+function sepStats(groupId, uptoMonthKey, onlyMonth){
+  let inc=0, exp=0;
+  state.entries.forEach(e=>{
+    if(e.groupId!==groupId || !isSeparate(e)) return;
+    const mk = monthKeyOf(e.date);
+    if(onlyMonth ? mk!==uptoMonthKey : mk>uptoMonthKey) return;
+    if(e.type==='income') inc+=e.amount; else exp+=e.amount;
+  });
+  return {inc, exp, bal:inc-exp};
+}
 function catLabel(entry){
   const g = findGroup(entry.type, entry.groupId);
   if(!g) return entry.groupId;
@@ -417,7 +464,7 @@ async function deleteEntry(id){
 
 function computeCategoryBreakdown(monthEntries){
   const map = {};
-  monthEntries.filter(e=>e.type==='expense').forEach(e=>{
+  monthEntries.filter(e=>e.type==='expense' && !isSeparate(e)).forEach(e=>{
     const g = findGroup('expense', e.groupId);
     if(!g) return;
     if(!map[g.id]) map[g.id] = {label:g.label, total:0, subs:{}};
@@ -450,7 +497,7 @@ function getFilteredEntries(){
 function renderFilterCategoryOptions(){
   const sel = document.getElementById('filterCategory');
   const current = sel.value;
-  const all = [...EXPENSE_GROUPS, ...INCOME_GROUPS];
+  const all = [...EXPENSE_GROUPS, ...INCOME_GROUPS].filter((g,i,arr)=>arr.findIndex(x=>x.id===g.id)===i);
   sel.innerHTML = '<option value="">Όλες οι κατηγορίες</option>' + all.map(g=>`<option value="${g.id}">${escapeHtml(g.label)}</option>`).join('');
   sel.value = current;
 }
@@ -470,10 +517,10 @@ function renderMonths(){
     const monthEntries = filtered.filter(e=>monthKeyOf(e.date)===mk);
     if(isFiltering && monthEntries.length===0) return;
 
-    const income = monthEntriesAll.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);
-    const expense = monthEntriesAll.filter(e=>e.type==='expense').reduce((s,e)=>s+e.amount,0);
+    const income = monthEntriesAll.filter(e=>e.type==='income' && !isSeparate(e)).reduce((s,e)=>s+e.amount,0);
+    const expense = monthEntriesAll.filter(e=>e.type==='expense' && !isSeparate(e)).reduce((s,e)=>s+e.amount,0);
     let prevInc=0, prevExp=0;
-    state.entries.forEach(e=>{ if(monthKeyOf(e.date) < mk){ e.type==='income'?prevInc+=e.amount:prevExp+=e.amount; } });
+    state.entries.forEach(e=>{ if(isSeparate(e)) return; if(monthKeyOf(e.date) < mk){ e.type==='income'?prevInc+=e.amount:prevExp+=e.amount; } });
     const carry = prevInc - prevExp;
     const total = carry + income - expense;
 
@@ -487,16 +534,28 @@ function renderMonths(){
       return `<div class="catline"><span>${escapeHtml(g.label)}</span><span class="amt">${fmtMoney(g.total)}</span></div>${subsHtml}`;
     }).join('') + `</div>` : '';
 
+    const sepHtml = EXPENSE_GROUPS.filter(g=>g.separate).map(g=>{
+      const cur = sepStats(g.id, mk, true);
+      const upto = sepStats(g.id, mk, false);
+      const prevBal = upto.bal - cur.bal;
+      if(!(cur.inc>0 || cur.exp>0 || Math.abs(prevBal)>0.004)) return '';
+      return `<div class="sepbox"><div class="seph">${escapeHtml(g.label)} <small>(ξεχωριστός λογαριασμός, εκτός συνόλων)</small></div>
+        <div class="sepl"><span>Μεταφορά</span><span class="amt">${fmtMoney(prevBal)}</span></div>
+        <div class="sepl"><span>Έσοδα</span><span class="amt">+${fmtMoney(cur.inc)}</span></div>
+        <div class="sepl"><span>Έξοδα</span><span class="amt">-${fmtMoney(cur.exp)}</span></div>
+        <div class="sepl tot"><span>Υπόλοιπο</span><span class="amt">${fmtMoney(upto.bal)}</span></div></div>`;
+    }).join('');
+
     const sortedEntries = [...monthEntries].sort((a,b)=> b.date.localeCompare(a.date));
     const entriesHtml = sortedEntries.length ? sortedEntries.map(e=>`
-      <div class="entry ${e.type}">
+      <div class="entry ${e.type}${isSeparate(e)?' separate':''}">
         <div class="left">
           <div class="date">${e.date.split('-').reverse().join('/')}</div>
           <div class="cat">${escapeHtml(catLabel(e))}</div>
           ${e.description ? `<div class="desc">${escapeHtml(e.description)}</div>` : ''}
         </div>
         <div class="right">
-          <div class="amt ${e.type}">${e.type==='income'?'+':'-'}${fmtMoney(e.amount)}</div>
+          <div class="amt ${e.type}${isSeparate(e)?' separate':''}">${e.type==='income'?'+':'-'}${fmtMoney(e.amount)}</div>
           <div class="actions">
             <button class="icon-btn" onclick="startEdit('${e.id}')" aria-label="Επεξεργασία">✏️</button>
             <button class="icon-btn" onclick="deleteEntry('${e.id}')" aria-label="Διαγραφή">🗑️</button>
@@ -518,6 +577,7 @@ function renderMonths(){
         </summary>
         <div class="details-inner">
           ${breakdownHtml}
+          ${sepHtml}
           <div class="entries">${entriesHtml}</div>
         </div>
       </details>
@@ -540,16 +600,19 @@ function renderYearlyTable(){
   const stripWrap = document.getElementById('monthStrip');
   const wrap = document.getElementById('yearlyTableWrap');
   if(!year){ stripWrap.innerHTML=''; wrap.innerHTML = '<div class="empty">Δεν υπάρχουν δεδομένα.</div>'; return; }
+  const sepGroups = EXPENSE_GROUPS.filter(g=>g.separate);
   const months = [];
   for(let m=1;m<=12;m++){
     const mk = year+'-'+String(m).padStart(2,'0');
     const me = state.entries.filter(e=>monthKeyOf(e.date)===mk);
-    const inc = me.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);
-    const exp = me.filter(e=>e.type==='expense').reduce((s,e)=>s+e.amount,0);
-    months.push({m, mk, inc, exp, bal:inc-exp});
+    const inc = me.filter(e=>e.type==='income' && !isSeparate(e)).reduce((s,e)=>s+e.amount,0);
+    const exp = me.filter(e=>e.type==='expense' && !isSeparate(e)).reduce((s,e)=>s+e.amount,0);
+    const sep = sepGroups.map(g=>({cur: sepStats(g.id, mk, true), upto: sepStats(g.id, mk, false)}));
+    months.push({m, mk, inc, exp, bal:inc-exp, sep});
   }
   const totInc = months.reduce((s,mo)=>s+mo.inc,0);
   const totExp = months.reduce((s,mo)=>s+mo.exp,0);
+  const totSep = sepGroups.map((g,i)=>({inc: months.reduce((s,mo)=>s+mo.sep[i].cur.inc,0), exp: months.reduce((s,mo)=>s+mo.sep[i].cur.exp,0), bal: months[11].sep[i].upto.bal}));
 
   stripWrap.innerHTML = months.map(mo=>`
     <div class="month-pill">
@@ -560,9 +623,9 @@ function renderYearlyTable(){
 
   wrap.innerHTML = `
     <table class="ytable">
-      <thead><tr><th>Μήνας</th><th>Έσοδα</th><th>Έξοδα</th><th>Υπόλοιπο</th></tr></thead>
-      <tbody>${months.map(mo=>`<tr><td>${MONTH_NAMES[mo.m-1]}</td><td>${fmtMoney(mo.inc)}</td><td>${fmtMoney(mo.exp)}</td><td>${fmtMoney(mo.bal)}</td></tr>`).join('')}</tbody>
-      <tfoot><tr><td>Σύνολο ${year}</td><td>${fmtMoney(totInc)}</td><td>${fmtMoney(totExp)}</td><td>${fmtMoney(totInc-totExp)}</td></tr></tfoot>
+      <thead><tr><th>Μήνας</th><th>Έσοδα</th><th>Έξοδα</th><th>Υπόλοιπο</th>${sepGroups.map(g=>`<th>${escapeHtml(g.label)} έσοδα</th><th>${escapeHtml(g.label)} έξοδα</th><th>${escapeHtml(g.label)} υπόλοιπο</th>`).join('')}</tr></thead>
+      <tbody>${months.map(mo=>`<tr><td>${MONTH_NAMES[mo.m-1]}</td><td>${fmtMoney(mo.inc)}</td><td>${fmtMoney(mo.exp)}</td><td>${fmtMoney(mo.bal)}</td>${mo.sep.map(s=>`<td>${fmtMoney(s.cur.inc)}</td><td>${fmtMoney(s.cur.exp)}</td><td>${fmtMoney(s.upto.bal)}</td>`).join('')}</tr>`).join('')}</tbody>
+      <tfoot><tr><td>Σύνολο ${year}</td><td>${fmtMoney(totInc)}</td><td>${fmtMoney(totExp)}</td><td>${fmtMoney(totInc-totExp)}</td>${totSep.map(s=>`<td>${fmtMoney(s.inc)}</td><td>${fmtMoney(s.exp)}</td><td>${fmtMoney(s.bal)}</td>`).join('')}</tr></tfoot>
     </table>
   `;
 }
@@ -610,6 +673,64 @@ function renderAnalysisTable(){
   `;
 }
 
+const STAT_COLORS = ['#5B3A29','#9C7A3C','#3E6650','#A23E2E','#4F6D8A','#7A5C8E'];
+const STAT_OTHER = '#A9A28C';
+function renderStats(){
+  const sel = document.getElementById('statsPeriod');
+  const body = document.getElementById('statsBody');
+  if(state.entries.length===0){ sel.innerHTML=''; body.innerHTML='<div class="empty">Δεν υπάρχουν δεδομένα ακόμα.</div>'; return; }
+  const monthKeys = [...new Set(state.entries.map(e=>monthKeyOf(e.date)))].sort().reverse();
+  const years = [...new Set(state.entries.map(e=>e.date.slice(0,4)))].sort().reverse();
+  const current = sel.value;
+  sel.innerHTML = monthKeys.map(mk=>`<option value="m:${mk}">${monthLabel(mk)}</option>`).join('') + years.map(y=>`<option value="y:${y}">Έτος ${y}</option>`).join('');
+  const nowKey = new Date().toISOString().slice(0,7);
+  const valid = [...sel.options].map(o=>o.value);
+  sel.value = valid.includes(current) ? current : (monthKeys.includes(nowKey) ? 'm:'+nowKey : 'm:'+monthKeys[0]);
+  const [kind, key] = sel.value.split(':');
+  const exps = state.entries.filter(e=>e.type==='expense' && !isSeparate(e));
+  const inPeriod = exps.filter(e=> kind==='m' ? monthKeyOf(e.date)===key : e.date.slice(0,4)===key);
+  const year = kind==='m' ? key.slice(0,4) : key;
+  const yearExps = exps.filter(e=>e.date.slice(0,4)===year);
+  const monthsWithExp = new Set(yearExps.map(e=>monthKeyOf(e.date))).size;
+  const yearTotal = yearExps.reduce((s,e)=>s+e.amount,0);
+  const avg = monthsWithExp ? yearTotal/monthsWithExp : 0;
+  const total = inPeriod.reduce((s,e)=>s+e.amount,0);
+  if(total<=0){ body.innerHTML='<div class="empty">Δεν υπάρχουν έξοδα σε αυτή την περίοδο.</div>'; return; }
+  const map = {};
+  inPeriod.forEach(e=>{ const g=findGroup('expense', e.groupId); const k=e.groupId; if(!map[k]) map[k]={label:g?g.label:e.groupId, total:0}; map[k].total+=e.amount; });
+  const cats = Object.values(map).sort((a,b)=>b.total-a.total);
+  const top = cats.slice(0,6);
+  const restTotal = cats.slice(6).reduce((s,c)=>s+c.total,0);
+  const slices = top.map((c,i)=>({label:c.label, total:c.total, color:STAT_COLORS[i]}));
+  if(restTotal>0) slices.push({label:'Λοιπά', total:restTotal, color:STAT_OTHER});
+  const R=62, C=2*Math.PI*R; let acc=0;
+  const circles = slices.map(s=>{
+    const len = C*s.total/total;
+    const el = `<circle cx="90" cy="90" r="${R}" fill="none" stroke="${s.color}" stroke-width="26" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}" transform="rotate(-90 90 90)"/>`;
+    acc += len; return el;
+  }).join('');
+  const pct = v=>{ const p=v/total*100; return p<1 ? '<1%' : Math.round(p)+'%'; };
+  const legend = cats.map(c=>{
+    const idx = top.indexOf(c);
+    const color = idx>=0 ? STAT_COLORS[idx] : STAT_OTHER;
+    return `<div class="legend-row"><span class="dot" style="background:${color}"></span><span class="nm">${escapeHtml(c.label)}</span><span class="pc">${pct(c.total)}</span><span class="am">${fmtMoney(c.total)}</span></div>`;
+  }).join('');
+  body.innerHTML = `
+    <div class="stat-chips">
+      <div class="stat-chip"><span class="k">Μέσος όρος εξόδων / μήνα (${year})</span><span class="v">${fmtMoney(avg)}</span></div>
+      <div class="stat-chip"><span class="k">Μεγαλύτερη κατηγορία</span><span class="v">${escapeHtml(cats[0].label)}</span><span class="s">${fmtMoney(cats[0].total)} · ${pct(cats[0].total)}</span></div>
+    </div>
+    <div class="donut-wrap">
+      <svg viewBox="0 0 180 180" width="210" height="210" role="img" aria-label="Έξοδα ανά κατηγορία">
+        <circle cx="90" cy="90" r="${R}" fill="none" stroke="var(--paper-light)" stroke-width="26"/>
+        ${circles}
+        <text x="90" y="86" text-anchor="middle" font-size="9" fill="var(--ink-soft)">έξοδα</text>
+        <text x="90" y="104" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ink)" font-family="ui-monospace, Menlo, Consolas, monospace">${fmtMoney(total)}</text>
+      </svg>
+    </div>
+    <div>${legend}</div>`;
+}
+
 function renderAll(){
   renderFilterCategoryOptions();
   renderMonths();
@@ -617,6 +738,7 @@ function renderAll(){
   renderYearlyTable();
   renderAnalysisSelectors();
   renderAnalysisTable();
+  renderStats();
 }
 
 const LEGACY_CATEGORY_MAP = {
@@ -735,6 +857,7 @@ document.getElementById('filterCategory').addEventListener('change', renderMonth
 document.getElementById('yearlySelect').addEventListener('change', renderYearlyTable);
 document.getElementById('analysisGroup').addEventListener('change', renderAnalysisTable);
 document.getElementById('analysisYear').addEventListener('change', renderAnalysisTable);
+document.getElementById('statsPeriod').addEventListener('change', renderStats);
 
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   if(state.entries.length===0){ showToast('Δεν υπάρχουν δεδομένα για εξαγωγή'); return; }
