@@ -123,9 +123,9 @@
   .catline .amt{font-family:var(--font-mono);}
   .entries{margin-top:.7rem; border-top:1px solid var(--line); padding-top:.5rem;}
   .entry{
-    display:flex; justify-content:space-between; align-items:center; gap:.5rem;
-    padding:.55rem .6rem; border-radius:6px; margin-bottom:.35rem;
+    display:block; padding:.4rem .6rem; border-radius:6px; margin-bottom:.25rem; cursor:pointer;
   }
+  .entry .line{display:flex; justify-content:space-between; align-items:center; gap:.6rem;}
   .entry.expense{background:var(--red-bg);}
   .entry.income{background:var(--green-bg);}
   .entry.separate{background:#EEE3C2;}
@@ -136,15 +136,21 @@
   .sepbox .sepl.tot{border-top:1px solid var(--gold); margin-top:.2rem; padding-top:.3rem; font-weight:700;}
   .sepbox small{font-weight:400; color:var(--ink-soft);}
   .sepbox .amt{font-family:var(--font-mono); color:var(--gold);}
-  .entry .left{min-width:0;}
-  .entry .date{font-family:var(--font-mono); font-size:11px; color:var(--ink-soft);}
-  .entry .cat{font-weight:600; font-size:13.5px;}
-  .entry .desc{font-size:12.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .entry .right{text-align:right; flex-shrink:0;}
-  .entry .amt{font-family:var(--font-mono); font-weight:700; font-size:14.5px;}
+  .entry .left{display:flex; align-items:baseline; gap:.5rem; min-width:0; flex:1;}
+  .entry .cat{font-weight:600; font-size:13.5px; flex-shrink:0; max-width:55%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .entry .desc{font-size:12.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;}
+  .entry .amt{font-family:var(--font-mono); font-weight:700; font-size:14px; flex-shrink:0;}
   .entry .amt.expense{color:var(--red);}
   .entry .amt.income{color:var(--green);}
-  .entry .actions{display:flex; gap:.4rem; margin-top:.25rem;}
+  .entry .actions{display:none; justify-content:flex-end; gap:.4rem; margin-top:.4rem;}
+  .entry.open .actions{display:flex;}
+  .dayhead{display:flex; justify-content:space-between; align-items:baseline; gap:.5rem; margin:.8rem 0 .35rem; padding-bottom:.2rem; border-bottom:1px solid var(--line); font-size:12px; font-weight:700; color:var(--ink-soft);}
+  .dayhead:first-child{margin-top:0;}
+  .dayhead .dt{font-family:var(--font-display); font-size:13px; color:var(--ink);}
+  .dayhead .tot{font-family:var(--font-mono); display:flex; gap:.6rem;}
+  .dayhead .tot .neg{color:var(--red);}
+  .dayhead .tot .pos{color:var(--green);}
+  .dayhead .tot .sep{color:var(--gold);}
   .icon-btn{
     border:1px solid var(--line); background:var(--card); border-radius:6px; width:32px; height:32px;
     cursor:pointer; font-size:14px; color:var(--ink-soft);
@@ -237,12 +243,16 @@
 <div class="perforation"></div>
 
 <section>
-  <h2 class="section-title"><span class="bar"></span>Μηνιαία κίνηση</h2>
-  <div class="filters">
-    <input type="text" id="searchInput" placeholder="Αναζήτηση σε περιγραφή...">
-    <select id="filterCategory"><option value="">Όλες οι κατηγορίες</option></select>
-  </div>
-  <div id="monthsContainer"></div>
+  <details id="monthlyDetails" open>
+    <summary><span>Μηνιαία κίνηση</span><span class="chev">▸</span></summary>
+    <div class="details-inner">
+      <div class="filters">
+        <input type="text" id="searchInput" placeholder="Αναζήτηση σε περιγραφή...">
+        <select id="filterCategory"><option value="">Όλες οι κατηγορίες</option></select>
+      </div>
+      <div id="monthsContainer"></div>
+    </div>
+  </details>
 </section>
 
 <section>
@@ -301,7 +311,7 @@
 
 <footer class="note">
   Τα δεδομένα αποθηκεύονται τοπικά στη συσκευή/browser που ανοίγεις την εφαρμογή. Για να τα έχεις και στο κινητό της συζύγου, κάνε «Εξαγωγή JSON» εδώ και «Εισαγωγή» εκεί (και αντίστροφα όποτε προστίθενται νέες κινήσεις) — δεν γίνεται αυτόματος συγχρονισμός ανάμεσα σε συσκευές.
-  <div style="margin-top:.5rem; font-family:monospace; opacity:.7;">build: 2026-11-12-4</div>
+  <div style="margin-top:.5rem; font-family:monospace; opacity:.7;">build: 2026-11-12-5</div>
 </footer>
 
 </div>
@@ -479,6 +489,8 @@ function computeCategoryBreakdown(monthEntries){
   return Object.values(map).sort((a,b)=>b.total-a.total);
 }
 
+function toggleEntry(el){ el.classList.toggle('open'); }
+
 function monthLabel(mk){
   const [y,m] = mk.split('-');
   return MONTH_NAMES[parseInt(m,10)-1] + ' ' + y;
@@ -547,22 +559,35 @@ function renderMonths(){
     }).join('');
 
     const sortedEntries = [...monthEntries].sort((a,b)=> b.date.localeCompare(a.date));
-    const entriesHtml = sortedEntries.length ? sortedEntries.map(e=>`
-      <div class="entry ${e.type}${isSeparate(e)?' separate':''}">
-        <div class="left">
-          <div class="date">${e.date.split('-').reverse().join('/')}</div>
-          <div class="cat">${escapeHtml(catLabel(e))}</div>
-          ${e.description ? `<div class="desc">${escapeHtml(e.description)}</div>` : ''}
-        </div>
-        <div class="right">
-          <div class="amt ${e.type}${isSeparate(e)?' separate':''}">${e.type==='income'?'+':'-'}${fmtMoney(e.amount)}</div>
-          <div class="actions">
-            <button class="icon-btn" onclick="startEdit('${e.id}')" aria-label="Επεξεργασία">✏️</button>
-            <button class="icon-btn" onclick="deleteEntry('${e.id}')" aria-label="Διαγραφή">🗑️</button>
+    const byDay = {};
+    sortedEntries.forEach(e=>{ (byDay[e.date]=byDay[e.date]||[]).push(e); });
+    const WD = ['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'];
+    const entriesHtml = sortedEntries.length ? Object.keys(byDay).sort().reverse().map(d=>{
+      const list = byDay[d];
+      const dInc = list.filter(e=>e.type==='income' && !isSeparate(e)).reduce((s,e)=>s+e.amount,0);
+      const dExp = list.filter(e=>e.type==='expense' && !isSeparate(e)).reduce((s,e)=>s+e.amount,0);
+      const dSep = list.filter(isSeparate).reduce((s,e)=>s+(e.type==='income'?e.amount:-e.amount),0);
+      const dt = new Date(d+'T00:00:00');
+      const parts = [];
+      if(dInc>0) parts.push(`<span class="pos">+${fmtMoney(dInc)}</span>`);
+      if(dExp>0) parts.push(`<span class="neg">-${fmtMoney(dExp)}</span>`);
+      if(dInc===0 && dExp===0 && dSep!==0) parts.push(`<span class="sep">${dSep>0?'+':'-'}${fmtMoney(Math.abs(dSep))}</span>`);
+      const rows = list.map(e=>`
+        <div class="entry ${e.type}${isSeparate(e)?' separate':''}" onclick="toggleEntry(this)">
+          <div class="line">
+            <div class="left">
+              <span class="cat">${escapeHtml(catLabel(e))}</span>
+              ${e.description ? `<span class="desc">${escapeHtml(e.description)}</span>` : ''}
+            </div>
+            <div class="amt ${e.type}${isSeparate(e)?' separate':''}">${e.type==='income'?'+':'-'}${fmtMoney(e.amount)}</div>
           </div>
-        </div>
-      </div>
-    `).join('') : '<div class="empty" style="padding:.8rem;">Καμία κίνηση με αυτά τα φίλτρα.</div>';
+          <div class="actions">
+            <button class="icon-btn" onclick="event.stopPropagation();startEdit('${e.id}')" aria-label="Επεξεργασία">✏️</button>
+            <button class="icon-btn" onclick="event.stopPropagation();deleteEntry('${e.id}')" aria-label="Διαγραφή">🗑️</button>
+          </div>
+        </div>`).join('');
+      return `<div class="dayhead"><span class="dt">${WD[dt.getDay()]} ${d.slice(8,10)}/${d.slice(5,7)}</span><span class="tot">${parts.join('')}</span></div>${rows}`;
+    }).join('') : '<div class="empty" style="padding:.8rem;">Καμία κίνηση με αυτά τα φίλτρα.</div>';
 
     html += `
       <details ${idx===0 || isFiltering ? 'open' : ''}>
